@@ -144,6 +144,70 @@ func (d *Runner) Run() error {
 	return err
 }
 
+// Run will validate that all edges in the graph point to existing vertices, and that there are
+// no dependency cycles. After validation, each vertex will be run, deterministically, in parallel
+// topological order. Difference between Run is it will continue execution despite vertex returning
+// an error (although will not execute it's dependencies).
+func (d *Runner) RunOnFailure() error {
+	// sanity check
+	if len(d.fns) == 0 {
+		return nil
+	}
+	// count how many deps each vertex has
+	deps := make(map[string]int)
+	for vertex, edges := range d.graph {
+		// every vertex along every edge must have an associated fn
+		if _, ok := d.fns[vertex]; !ok {
+			return errMissingVertex
+		}
+		for _, vertex := range edges {
+			if _, ok := d.fns[vertex]; !ok {
+				return errMissingVertex
+			}
+			deps[vertex]++
+		}
+	}
+
+	if d.detectCycles() {
+		return errCycleDetected
+	}
+
+	running := 0
+	resc := make(chan result, len(d.fns))
+	var err error
+
+	// start any vertex that has no deps
+	for name := range d.fns {
+		if deps[name] == 0 {
+			running++
+			start(name, d.fns[name], resc)
+		}
+	}
+
+	// wait for all running work to complete
+	for running > 0 {
+		res := <-resc
+		running--
+
+		// capture the first error
+		if res.err != nil && err == nil {
+			err = res.err
+		}
+		
+		if res.err == nil {
+			// start any vertex whose deps are fully resolved
+			for _, vertex := range d.graph[res.name] {
+				if deps[vertex]--; deps[vertex] == 0 {
+					running++
+					start(vertex, d.fns[vertex], resc)
+				}
+			}
+		}
+	}
+	
+	return err
+}
+
 func start(name string, fn func() error, resc chan<- result) {
 	go func() {
 		resc <- result{
