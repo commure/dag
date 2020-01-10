@@ -14,7 +14,7 @@ import (
 // Upon validation of the graph, functions are run in parallel topological order. The zero value
 // is useful.
 type Runner struct {
-	fns   map[string]func() error
+	fns   map[string]func(ancestor *string) error
 	graph map[string][]string
 }
 
@@ -23,9 +23,9 @@ var errCycleDetected = errors.New("dependency cycle detected")
 
 // AddVertex adds a function as a vertex in the graph. Only functions which have been added in this
 // way will be executed during Run.
-func (d *Runner) AddVertex(name string, fn func() error) {
+func (d *Runner) AddVertex(name string, fn func(ancestor *string) error) {
 	if d.fns == nil {
-		d.fns = make(map[string]func() error)
+		d.fns = make(map[string]func(a *string) error)
 	}
 	d.fns[name] = fn
 }
@@ -110,11 +110,15 @@ func (d *Runner) Run() error {
 	resc := make(chan result, len(d.fns))
 	var err error
 
+	exec := func (ancestor *string, vertex string) func () error  {
+		return func () error  { return d.fns[vertex](ancestor) }
+	};
+
 	// start any vertex that has no deps
 	for name := range d.fns {
 		if deps[name] == 0 {
 			running++
-			start(name, d.fns[name], resc)
+			start(name, exec(nil, name), resc)
 		}
 	}
 
@@ -133,11 +137,13 @@ func (d *Runner) Run() error {
 			continue
 		}
 
+
+		
 		// start any vertex whose deps are fully resolved
 		for _, vertex := range d.graph[res.name] {
 			if deps[vertex]--; deps[vertex] == 0 {
 				running++
-				start(vertex, d.fns[vertex], resc)
+				start(vertex, exec(&res.name, vertex), resc)
 			}
 		}
 	}

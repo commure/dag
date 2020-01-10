@@ -23,7 +23,7 @@ func TestZero(t *testing.T) {
 func TestOne(t *testing.T) {
 	myError := errors.New("error")
 	var r Runner
-	r.AddVertex("one", func() error { return myError })
+	r.AddVertex("one", func(a *string) error { return myError })
 	res := make(chan error)
 	go func() { res <- r.Run() }()
 	select {
@@ -39,10 +39,12 @@ func TestOne(t *testing.T) {
 func TestManyNoDeps(t *testing.T) {
 	myError := errors.New("error")
 	var r Runner
-	r.AddVertex("one", func() error { return myError })
-	r.AddVertex("two", func() error { return nil })
-	r.AddVertex("three", func() error { return nil })
-	r.AddVertex("fout", func() error { return nil })
+	r.AddVertex("one", func(a *string) error {
+		return myError
+	})
+	r.AddVertex("two", func(a *string) error { return nil })
+	r.AddVertex("three", func(a *string) error { return nil })
+	r.AddVertex("fout", func(a *string) error { return nil })
 	res := make(chan error)
 	go func() { res <- r.Run() }()
 	select {
@@ -57,10 +59,10 @@ func TestManyNoDeps(t *testing.T) {
 
 func TestManyWithCycle(t *testing.T) {
 	var r Runner
-	r.AddVertex("one", func() error { return nil })
-	r.AddVertex("two", func() error { return nil })
-	r.AddVertex("three", func() error { return nil })
-	r.AddVertex("four", func() error { return nil })
+	r.AddVertex("one", func(a *string) error { return nil })
+	r.AddVertex("two", func(a *string) error { return nil })
+	r.AddVertex("three", func(a *string) error { return nil })
+	r.AddVertex("four", func(a *string) error { return nil })
 
 	r.AddEdge("one", "two")
 	r.AddEdge("two", "three")
@@ -80,10 +82,10 @@ func TestManyWithCycle(t *testing.T) {
 
 func TestInvalidToVertex(t *testing.T) {
 	var r Runner
-	r.AddVertex("one", func() error { return nil })
-	r.AddVertex("two", func() error { return nil })
-	r.AddVertex("three", func() error { return nil })
-	r.AddVertex("four", func() error { return nil })
+	r.AddVertex("one", func(a *string) error { return nil })
+	r.AddVertex("two", func(a *string) error { return nil })
+	r.AddVertex("three", func(a *string) error { return nil })
+	r.AddVertex("four", func(a *string) error { return nil })
 
 	r.AddEdge("one", "two")
 	r.AddEdge("two", "three")
@@ -103,10 +105,10 @@ func TestInvalidToVertex(t *testing.T) {
 
 func TestInvalidFromVertex(t *testing.T) {
 	var r Runner
-	r.AddVertex("one", func() error { return nil })
-	r.AddVertex("two", func() error { return nil })
-	r.AddVertex("three", func() error { return nil })
-	r.AddVertex("four", func() error { return nil })
+	r.AddVertex("one", func(a *string) error { return nil })
+	r.AddVertex("two", func(a *string) error { return nil })
+	r.AddVertex("three", func(a *string) error { return nil })
+	r.AddVertex("four", func(a *string) error { return nil })
 
 	r.AddEdge("one", "two")
 	r.AddEdge("two", "three")
@@ -128,31 +130,31 @@ func TestManyWithDepsSuccess(t *testing.T) {
 	resc := make(chan string, 7)
 
 	var r Runner
-	r.AddVertex("one", func() error {
+	r.AddVertex("one", func(a *string) error {
 		resc <- "one"
 		return nil
 	})
-	r.AddVertex("two", func() error {
+	r.AddVertex("two", func(a *string) error {
 		resc <- "two"
 		return nil
 	})
-	r.AddVertex("three", func() error {
+	r.AddVertex("three", func(a *string) error {
 		resc <- "three"
 		return nil
 	})
-	r.AddVertex("four", func() error {
+	r.AddVertex("four", func(a *string) error {
 		resc <- "four"
 		return nil
 	})
-	r.AddVertex("five", func() error {
+	r.AddVertex("five", func(a *string) error {
 		resc <- "five"
 		return nil
 	})
-	r.AddVertex("six", func() error {
+	r.AddVertex("six", func(a *string) error {
 		resc <- "six"
 		return nil
 	})
-	r.AddVertex("seven", func() error {
+	r.AddVertex("seven", func(a *string) error {
 		resc <- "seven"
 		return nil
 	})
